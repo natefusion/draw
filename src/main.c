@@ -9,7 +9,7 @@ void dot(int x, int y) {
 int main() {
     SetTraceLogLevel(LOG_NONE);
     InitWindow(1000, 1000, "Draw");
-    SetTargetFPS(144);
+    SetTargetFPS(GetMonitorRefreshRate(GetCurrentMonitor()));
 
     BeginDrawing();
     ClearBackground(RAYWHITE);
