@@ -23,8 +23,7 @@ int main() {
             }
                     
             if (IsKeyDown(KEY_X) || IsKeyDown(KEY_SPACE)) {
-                int nX = GetMouseX();
-                int nY = GetMouseY();
+                dot(GetMouseX(), GetMouseY());
 
                 if (!IsCursorHidden())
                     HideCursor();
