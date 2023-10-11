@@ -6,6 +6,10 @@ void dot(int x, int y) {
     DrawCircle(x, y, RADIUS, BLACK);
 }
 
+void erase(int x, int y) {
+    DrawCircle(x, y, RADIUS * 2 , RAYWHITE);
+}
+
 int main() {
     SetTraceLogLevel(LOG_NONE);
     InitWindow(1000, 1000, "Draw");
@@ -27,9 +31,12 @@ int main() {
 
                 if (!IsCursorHidden())
                     HideCursor();
+            } else if (IsKeyDown(KEY_C)) {
+                erase(GetMouseX(), GetMouseY());
             } else if (IsCursorHidden()) {
                 ShowCursor();
             }
+
         }
         EndDrawing();
     }
