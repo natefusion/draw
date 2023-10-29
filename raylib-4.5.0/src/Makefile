@@ -742,14 +742,11 @@ android_native_app_glue.o : $(NATIVE_APP_GLUE)/android_native_app_glue.c
 
 # RAYLIB_INSTALL_PATH should be the desired full path to libraylib. No relative paths.
 DESTDIR ?= ../../target/raylib
-RAYLIB_INSTALL_PATH ?= $(DESTDIR)/lib
-# RAYLIB_H_INSTALL_PATH locates the installed raylib header and associated source files.
-RAYLIB_H_INSTALL_PATH ?= $(DESTDIR)/include
+RAYLIB_INSTALL_PATH ?= $(DESTDIR)
 
 install :
 ifeq ($(PLATFORM_OS),LINUX)
 	mkdir --parents --verbose $(RAYLIB_INSTALL_PATH)
-	mkdir --parents --verbose $(RAYLIB_H_INSTALL_PATH)
     ifeq ($(RAYLIB_LIBTYPE),SHARED)
     # Installing raylib to $(RAYLIB_INSTALL_PATH).
 	cp --update --verbose $(RAYLIB_RELEASE_PATH)/libraylib.so.$(RAYLIB_VERSION) $(RAYLIB_INSTALL_PATH)/lib$(RAYLIB_LIB_NAME).so.$(RAYLIB_VERSION)
@@ -762,10 +759,6 @@ ifeq ($(PLATFORM_OS),LINUX)
     # Installing raylib to $(RAYLIB_INSTALL_PATH).
 	cp --update --verbose $(RAYLIB_RELEASE_PATH)/lib$(RAYLIB_LIB_NAME).a $(RAYLIB_INSTALL_PATH)/lib$(RAYLIB_LIB_NAME).a
     endif
-    # Copying raylib development files to $(RAYLIB_H_INSTALL_PATH).
-	cp --update raylib.h $(RAYLIB_H_INSTALL_PATH)/raylib.h
-	cp --update raymath.h $(RAYLIB_H_INSTALL_PATH)/raymath.h
-	cp --update rlgl.h $(RAYLIB_H_INSTALL_PATH)/rlgl.h
 	@echo "raylib development files installed/updated!"
 else
 	@echo "This function currently works on GNU/Linux systems. Add yours today (^;"
