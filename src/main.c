@@ -1,194 +1,125 @@
 #include "raylib.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
-enum { RADIUS = 4 };
+#define WIDTH 1000
+#define HEIGHT 1000
 
-struct Point {
-    int x;
-    int y;
-    struct Point *next;
+struct Strokes {
+    int xy_size;
+    int xy_capacity;
+    int num_strokes;
+    int strokes_capacity;
+    int *stroke_offsets;
+    int *stroke_sizes;
+    int *x;
+    int *y;
 };
 
-struct Point *make_point(int x, int y) {
-    struct Point *p = (struct Point *)malloc(sizeof(struct Point));
-    p->x = x;
-    p->y = y;
-    return p;
-}
-
-struct Stroke {
-    int min_x;
-    int min_y;
-    int max_x;
-    int max_y;
-    struct Point *points;
-    struct Stroke *next;
-};
-
-struct Stroke *make_stroke() {
-    struct Stroke *s = (struct Stroke *)malloc(sizeof(struct Stroke));
-    s->min_x = 0;
-    s->min_y = 0;
-    s->max_x = 0;
-    s->max_y = 0;
-    s->points = NULL;
-    s->next = NULL;
-    return s;
-}
-
-void push_point(struct Stroke *s, int x, int y) {
-    struct Point *p = make_point(x, y);
-    p->next = s->points;
-    s->points = p;
-}
-
-void free_points(struct Point *p) {
-    if (!p)
-        return;
-
-    struct Point *n = p->next;
-    free(p);
-    free_points(n);
-}
-
-void free_strokes(struct Stroke *s) {
-    if (!s)
-        return;
-
-    struct Stroke *n = s->next;
-    free_points(s->points);
-    free(s);
-    free_strokes(n);
-}
-
-void print_points(struct Point *p) {
-    while (p) {
-        printf("(%d, %d) ", p->x, p->y);
-        p = p->next;
-    }
-    printf("\n");
-}
-
-void print_strokes(struct Stroke *s) {
-    while(s) {
-        printf("(min x, min y) = (%d, %d)\n", s->min_x, s->min_y);
-        printf("(max x, max y) = (%d, %d)\n", s->max_x, s->max_y);
-        print_points(s->points);
-        s = s->next;
-        printf("\n");
-    }
-
-}
-
-void get_min_max_for_stroke(struct Stroke *s) {
-    if (!s)
-        return;
-    struct Point *p = s->points;
-    if (!p)
-        return;
+void add_point(struct Strokes *s, int x, int y) {
+    if (s->xy_size >= 1 && s->x[s->xy_size - 1] == x && s->y[s->xy_size - 1] == y) return;
     
-    int min_x = p->x;
-    int min_y = p->y;
-    int max_x = min_x;
-    int max_y = min_y;
+    s->xy_size += 1;
+    s->stroke_sizes[s->num_strokes-1] += 1;
 
-    while (p) {
-        if (p->x < min_x)
-            min_x = p->x;
-        else if (p->x > max_x)
-            max_x = p->x;
+    if (s->xy_size >= s->xy_capacity) {
+        s->xy_capacity = 1 + (int)roundf(1.618033989f * (float)s->xy_capacity);
+        s->x = realloc(s->x, s->xy_capacity * sizeof(int));
+        s->y = realloc(s->y, s->xy_capacity * sizeof(int));
+    }
+    
+    s->x[s->xy_size - 1] = x;
+    s->y[s->xy_size - 1] = y;
+}
 
-        if (p->y < min_y)
-            min_y = p->y;
-        else if (p->y > max_y)
-            max_y = p->y;
-        
-        p = p->next;
+void add_stroke(struct Strokes *s) {
+    s->num_strokes += 1;
+    if (s->num_strokes >= s->strokes_capacity) {
+        s->strokes_capacity = 1 + (int)roundf(1.618033989f * (float)s->strokes_capacity);
+        s->stroke_offsets = realloc(s->stroke_offsets, s->strokes_capacity * sizeof(int));
+        s->stroke_sizes = realloc(s->stroke_sizes, s->strokes_capacity * sizeof(int));
     }
 
-    s->min_x = min_x;
-    s->min_y = min_y;
-    s->max_x = max_x;
-    s->max_y = max_y;
+    s->stroke_offsets[s->num_strokes-1] = s->xy_size;
+    s->stroke_sizes[s->num_strokes-1] = 0;
 }
 
-int in_the_highlight(int hX, int hY, int w, int h, struct Stroke *s) {
-    int stroke_num = 0;
+int get_x(struct Strokes *s, int stroke, int point) {
+    return s->x[s->stroke_offsets[stroke] + point];
+}
 
-    while(s) {
-        if (s->min_x >= hX && s->max_x <= (hX+w) && s->min_y >= hY && s->max_y <= (hY+h))
-            return stroke_num;
+int get_y(struct Strokes *s, int stroke, int point) {
+    return s->y[s->stroke_offsets[stroke] + point];
+}
 
-        s = s->next;
-        stroke_num++;
+void print_strokes(struct Strokes *s) {
+    for (int i = 0; i < s->num_strokes; ++i) {
+        printf("Stroke %d starts on index %d with a length of %d and a capacity of %d\n", i + 1, s->stroke_offsets[i], s->stroke_sizes[i], s->xy_capacity);
+        for (int j = 0; j < s->stroke_sizes[i]; ++j) {
+            printf("(%d, %d) ", get_x(s, i, j), get_y(s, i, j));
+        }
+        printf("\n\n");
     }
-
-    return -1;
 }
 
-void dot(int x, int y) {
-    DrawCircle(x, y, RADIUS, BLACK);
-}
-
-void erase(int x, int y) {
-    DrawCircle(x, y, RADIUS * 2 , RAYWHITE);
-}
-
-void swap() {
-    SwapScreenBuffer();
-}
-
-void clear() {
-    ClearBackground(RAYWHITE);
-}
-
-
-void lerp(int x1, int y1, int x2, int y2) {
-    DrawLineEx((Vector2){x1, y1}, (Vector2){x2, y2}, RADIUS, BLACK);
-    /* DrawLine(x1, y1, x2, y2, BLACK); */
-}
-
-int main() {
-    InitWindow(1000, 1000, "Draw");
-    double previousTime = GetTime();
-    double currentTime = 0.0;
-    double updateDrawTime = 0.0;
-    int targetFPS = 60;
+int main(void) {
+    InitWindow(WIDTH, HEIGHT, "Draw");
+    SetTargetFPS(GetMonitorRefreshRate(GetCurrentMonitor()));
+    
     bool highlight_mode = false;
-    int stroke_num = 0;
 
-    struct Stroke *head = NULL;
+    RenderTexture2D render_texture = LoadRenderTexture(WIDTH, HEIGHT);
 
+    struct Strokes strokes = {0};
+
+    BeginTextureMode(render_texture);
+    ClearBackground(WHITE);
+    EndTextureMode();
+    
     int pX = 0;
     int pY = 0;
 
     int hX = 0;
     int hY = 0;
 
-    clear();
-
     while(!WindowShouldClose()) {
-        PollInputEvents();
-
-        if (IsKeyPressed(KEY_E)) {
-            clear();
-        }
-
-        if (IsKeyPressed(KEY_S)) {
-            swap();
-        }
+        int x = GetMouseX();
+        if (x > WIDTH) x = WIDTH;
+        else if (x < 0) x = 0;
+        
+        int y = GetMouseY();
+        if (y > HEIGHT) y = HEIGHT;
+        else if (y < 0) y = 0;
 
         if (IsKeyPressed(KEY_H)) {
-            highlight_mode = !highlight_mode;
-            hX = GetMouseX();
-            hY = GetMouseY();
+            if (!highlight_mode) {
+                highlight_mode = true;
+                hX = GetMouseX();
+                hY = GetMouseY();                
+            } else {
+                highlight_mode = false;                
+            }
+        }
+
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+            add_stroke(&strokes);
+        }
+
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            BeginTextureMode(render_texture);
+            DrawLineEx((Vector2){pX, pY}, (Vector2){x, y}, 2, BLACK);
+            EndTextureMode();
+
+            add_point(&strokes, x, y);
         }
 
         BeginDrawing();
         {
-            int x = GetMouseX();
-            int y = GetMouseY();
+            ClearBackground(RAYWHITE);
+
+            // NOTE: Render texture must be y-flipped due to default OpenGL coordinates (left-bottom)
+            DrawTextureRec(render_texture.texture, (Rectangle) { 0, 0, (float)render_texture.texture.width, (float)-render_texture.texture.height }, (Vector2) { 0, 0 }, WHITE);
 
             if (highlight_mode) {
                 int w = x - hX;
@@ -199,51 +130,21 @@ int main() {
                 w = abs(w);
                 h = abs(h);
 
-                DrawRectangle(10, 50, 220, 20, RAYWHITE);
-                DrawText(TextFormat("HIGHLIGHT MODE: %d", in_the_highlight(ax, ay, w, h, head)), 10, 50, 20, BLACK);
-                DrawRectangle(ax, ay, w, h, RAYWHITE);
                 DrawRectangleLines(ax, ay, w, h, BLACK);
-            } else {
-                if (IsKeyPressed(KEY_SPACE) || IsMouseButtonPressed(0) || IsMouseButtonPressed(4)) {
-                    get_min_max_for_stroke(head);
-                    stroke_num++;
-                    struct Stroke *new_stroke = make_stroke();
-                    new_stroke->next = head;
-                    head = new_stroke;
-                }
-                
-                if (IsKeyDown(KEY_SPACE) || IsMouseButtonDown(0) || IsMouseButtonDown(4)) {
-                    lerp(pX, pY, x, y);
-                    push_point(head, x, y);
-                } else if (IsKeyDown(KEY_C) || IsMouseButtonDown(1)) {
-                    erase(x, y);
-                }
-            
-                DrawRectangle(10, 10, 110, 20, RAYWHITE);
-                DrawText(TextFormat("Stroke: %d", stroke_num), 10, 10, 20, BLACK);
+                /* DrawText(TextFormat("HIGHLIGHT MODE: %d", in_the_highlight(ax, ay, w, h, head)), 10, 50, 20, BLACK); */
             }
 
-            pX = x;
-            pY = y;
+            DrawText(TextFormat("Stroke: %d", strokes.num_strokes), 10, 10, 20, BLACK);
         }
         EndDrawing();
-        swap();
 
-        currentTime = GetTime();
-        updateDrawTime = currentTime - previousTime;
-
-        if (targetFPS > 0) {
-            float waitTime = (1.0f/(float)targetFPS) - updateDrawTime;
-            if (waitTime > 0.0) {
-                WaitTime((float)waitTime);
-                currentTime = GetTime();
-            }
-        }
-
-        previousTime = currentTime;
+        pX = x;
+        pY = y;
     }
 
+    UnloadRenderTexture(render_texture);
+
     CloseWindow();
-    print_strokes(head);
-    free_strokes(head);
+
+    print_strokes(&strokes);
 }
