@@ -7,6 +7,16 @@
 #define WIDTH 1000
 #define HEIGHT 1000
 
+struct Point {
+    int x;
+    int y;
+};
+
+struct Stroke_Slice {
+    int offset;
+    int size;
+};
+
 struct Box {
     int x;
     int y;
@@ -18,59 +28,46 @@ struct Strokes {
     int xy_capacity;
     int num_strokes;
     int strokes_capacity;
-    int *stroke_offsets;
-    int *stroke_sizes;
+    struct Stroke_Slice *slices;
     struct Box *boxes;
-    Color *temp_stroke_buffer;
-    int *x;
-    int *y;
+    struct Point *xy;
 };
 
 void add_point(struct Strokes *s, int x, int y) {
-    if (s->xy_size >= 1 && s->x[s->xy_size - 1] == x && s->y[s->xy_size - 1] == y) return;
+    if (s->xy_size >= 1 && s->xy[s->xy_size - 1].x == x && s->xy[s->xy_size - 1].y == y) return;
     
     s->xy_size += 1;
-    s->stroke_sizes[s->num_strokes-1] += 1;
+    s->slices[s->num_strokes-1].size += 1;
 
     if (s->xy_size >= s->xy_capacity) {
         s->xy_capacity = 1 + (int)roundf(1.618033989f * (float)s->xy_capacity);
-        s->x = realloc(s->x, s->xy_capacity * sizeof(int));
-        s->y = realloc(s->y, s->xy_capacity * sizeof(int));
+        s->xy = realloc(s->xy, s->xy_capacity * sizeof(struct Point));
     }
 
-    s->x[s->xy_size - 1] = x;
-    s->y[s->xy_size - 1] = y;
+    s->xy[s->xy_size - 1].x = x;
+    s->xy[s->xy_size - 1].y = y;
 }
 
 void add_stroke(struct Strokes *s) {
     s->num_strokes += 1;
     if (s->num_strokes >= s->strokes_capacity) {
         s->strokes_capacity = 1 + (int)roundf(1.618033989f * (float)s->strokes_capacity);
-        s->stroke_offsets = realloc(s->stroke_offsets, s->strokes_capacity * sizeof(int));
-        s->stroke_sizes   = realloc(s->stroke_sizes, s->strokes_capacity * sizeof(int));
+        s->slices         = realloc(s->slices, s->strokes_capacity * sizeof(struct Stroke_Slice));
         s->boxes          = realloc(s->boxes, s->strokes_capacity * sizeof(struct Box));
     }
 
-    s->stroke_offsets[s->num_strokes-1] = s->xy_size;
-    s->stroke_sizes[s->num_strokes-1] = 0;
+    s->slices[s->num_strokes-1].offset = s->xy_size;
+    s->slices[s->num_strokes-1].size = 0;
     s->boxes[s->num_strokes-1] = (struct Box){0};
-}
-
-int get_x(struct Strokes *s, int stroke, int point) {
-    return s->x[s->stroke_offsets[stroke] + point];
-}
-
-int get_y(struct Strokes *s, int stroke, int point) {
-    return s->y[s->stroke_offsets[stroke] + point];
 }
 
 void draw_stroke(struct Strokes *s, int stroke, int x, int y, Color color) {
     int height = s->boxes[stroke].texture.texture.height;
-    Vector2 prev = {s->x[0] + x, height - s->y[0] + y};
+    Vector2 prev = {s->xy[0].x + x, height - s->xy[0].y + y};
     
-    for (int i = 0; i < s->stroke_sizes[stroke]; ++i) {
-        int idx = s->stroke_offsets[stroke] + i;
-        Vector2 cur = {s->x[idx] + x, height - s->y[idx] + y};
+    for (int i = 0; i < s->slices[stroke].size; ++i) {
+        int idx = s->slices[stroke].offset + i;
+        Vector2 cur = {s->xy[idx].x + x, height - s->xy[idx].y + y};
         DrawLineEx(prev, cur, 2, color);
         prev = cur;
     }
@@ -83,12 +80,12 @@ void upload_stroke_to_gpu_memory(struct Strokes *s) {
     int y_min = INT_MAX;
     int x_max = INT_MIN;
     int y_max = INT_MIN;
-    for (int i = 0; i < s->stroke_sizes[s->num_strokes-1]; ++i) {
-        int idx = s->stroke_offsets[s->num_strokes-1] + i; 
-        if (s->x[idx] < x_min) x_min = s->x[idx];
-        if (s->x[idx] > x_max) x_max = s->x[idx];
-        if (s->y[idx] < y_min) y_min = s->y[idx];
-        if (s->y[idx] > y_max) y_max = s->y[idx];
+    for (int i = 0; i < s->slices[s->num_strokes-1].size; ++i) {
+        int idx = s->slices[s->num_strokes-1].offset + i; 
+        if (s->xy[idx].x < x_min) x_min = s->xy[idx].x;
+        if (s->xy[idx].x > x_max) x_max = s->xy[idx].x;
+        if (s->xy[idx].y < y_min) y_min = s->xy[idx].y;
+        if (s->xy[idx].y > y_max) y_max = s->xy[idx].y;
     }
 
     box->x = x_min;
@@ -104,13 +101,13 @@ void upload_stroke_to_gpu_memory(struct Strokes *s) {
 
     BeginTextureMode(t);
 
-    Vector2 prev = {s->x[0] - x_min, y_max - s->y[0]};
+    Vector2 prev = {s->xy[0].x - x_min, y_max - s->xy[0].y};
     
-    for (int i = 0; i < s->stroke_sizes[s->num_strokes-1]; ++i) {
-        int idx = s->stroke_offsets[s->num_strokes-1] + i;
-        s->x[idx] -= x_min;
-        s->y[idx] = y_max - s->y[idx];
-        Vector2 cur = {s->x[idx], s->y[idx]};
+    for (int i = 0; i < s->slices[s->num_strokes-1].size; ++i) {
+        int idx = s->slices[s->num_strokes-1].offset + i;
+        s->xy[idx].x -= x_min;
+        s->xy[idx].y = y_max - s->xy[idx].y;
+        Vector2 cur = {s->xy[idx].x, s->xy[idx].y};
         DrawLineEx(prev, cur, 2, BLACK);
         prev = cur;
     }
@@ -140,9 +137,10 @@ int stroke_collision(struct Strokes *s, int x, int y) {
 
 void print_strokes(struct Strokes *s) {
     for (int i = 0; i < s->num_strokes; ++i) {
-        printf("Stroke %d starts on index %d with a length of %d and a capacity of %d\n", i + 1, s->stroke_offsets[i], s->stroke_sizes[i], s->xy_capacity);
-        for (int j = 0; j < s->stroke_sizes[i]; ++j) {
-            printf("(%d, %d) ", get_x(s, i, j), get_y(s, i, j));
+        printf("Stroke %d starts on index %d with a length of %d and a capacity of %d\n", i + 1, s->slices[i].offset, s->slices[i].size, s->xy_capacity);
+        for (int j = 0; j < s->slices[i].size; ++j) {
+            int idx = s->slices[i].offset + j;
+            printf("(%d, %d) ", s->xy[idx].x, s->xy[idx].y);
         }
         printf("\n\n");
     }
@@ -157,7 +155,6 @@ int main(void) {
     RenderTexture2D render_texture = LoadRenderTexture(WIDTH, HEIGHT);
 
     struct Strokes strokes = {0};
-    strokes.temp_stroke_buffer = (Color*)calloc(WIDTH*HEIGHT, sizeof(Color));
 
     BeginTextureMode(render_texture);
     ClearBackground(WHITE);
