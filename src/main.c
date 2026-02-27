@@ -181,6 +181,9 @@ int main(void) {
 
     int stroke_idx = -1;
 
+    int offsetX = 0;
+    int offsetY = 0;
+
     while(!WindowShouldClose()) {
         int x = GetMouseX();
         if (x > WIDTH) x = WIDTH;
@@ -241,20 +244,22 @@ int main(void) {
                     BeginTextureMode(render_texture);
                     draw_stroke(&strokes, stroke_idx, strokes.boxes[stroke_idx].x, strokes.boxes[stroke_idx].y, WHITE);
                     EndTextureMode();
+                    offsetX = x - strokes.boxes[stroke_idx].x; // so you pick it up where the mouse cursor is, rather than it snapping to the corner
+                    offsetY = y - strokes.boxes[stroke_idx].y;
                     printf("Stroke %d has been selected\n", stroke_idx);
                 } else {
                     BeginTextureMode(render_texture);
-                    draw_stroke(&strokes, stroke_idx, x, y, BLACK);
+                    draw_stroke(&strokes, stroke_idx, x - offsetX, y - offsetY, BLACK);
                     EndTextureMode();
-                    strokes.boxes[stroke_idx].x = x;
-                    strokes.boxes[stroke_idx].y = y;
+                    strokes.boxes[stroke_idx].x = x - offsetX;
+                    strokes.boxes[stroke_idx].y = y - offsetY;
                     printf("Stroke %d has been unselected\n", stroke_idx);
                     stroke_idx = -1;
                 }
             }
             
             if (stroke_idx != -1) {
-                DrawTextureEx(strokes.boxes[stroke_idx].texture.texture, (Vector2){x, y}, 0.0f, 1.0f, WHITE);
+                DrawTextureEx(strokes.boxes[stroke_idx].texture.texture, (Vector2){x - offsetX, y - offsetY}, 0.0f, 1.0f, WHITE);
             }
             
             DrawText(TextFormat("Stroke: %d", strokes.num_strokes), 10, 10, 20, BLACK);
