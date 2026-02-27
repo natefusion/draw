@@ -205,6 +205,7 @@ int main(void) {
 
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             add_stroke(&strokes);
+            add_point(&strokes, pX, pY);
         } else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
             upload_stroke_to_gpu_memory(&strokes);
         }
@@ -214,7 +215,7 @@ int main(void) {
             DrawLineEx((Vector2){pX, pY}, (Vector2){x, y}, 2, BLACK);
             EndTextureMode();
 
-            add_point(&strokes, pX, pY);
+
             add_point(&strokes, x, y);
         }
 
