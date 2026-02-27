@@ -64,9 +64,11 @@ void add_stroke(struct Strokes *s) {
 void draw_stroke(struct Strokes *s, int stroke, int x, int y, Color color) {
     if (stroke < 0) return;
     int height = s->boxes[stroke].texture.texture.height;
-    Vector2 prev = {s->xy[0].x + x, height - s->xy[0].y + y};
     
-    for (int i = 0; i < s->slices[stroke].size; ++i) {
+    int idx = s->slices[stroke].offset + 0;
+    Vector2 prev = {s->xy[idx].x + x, height - s->xy[idx].y + y};
+
+    for (int i = 1; i < s->slices[stroke].size; ++i) {
         int idx = s->slices[stroke].offset + i;
         Vector2 cur = {s->xy[idx].x + x, height - s->xy[idx].y + y};
         DrawLineEx(prev, cur, 2, color);
@@ -89,6 +91,12 @@ void upload_stroke_to_gpu_memory(struct Strokes *s) {
         if (s->xy[idx].y > y_max) y_max = s->xy[idx].y;
     }
 
+    x_min -= 1;
+    x_max += 1;
+    y_min -= 1;
+    y_max += 1;
+
+
     box->x = x_min;
     box->y = y_min;
 
@@ -102,9 +110,13 @@ void upload_stroke_to_gpu_memory(struct Strokes *s) {
 
     BeginTextureMode(t);
 
-    Vector2 prev = {s->xy[0].x - x_min, y_max - s->xy[0].y};
+
+    int idx = s->slices[s->num_strokes-1].offset + 0;
+    s->xy[idx].x -= x_min;
+    s->xy[idx].y = y_max - s->xy[idx].y;
+    Vector2 prev = {s->xy[idx].x, s->xy[idx].y};
     
-    for (int i = 0; i < s->slices[s->num_strokes-1].size; ++i) {
+    for (int i = 1; i < s->slices[s->num_strokes-1].size; ++i) {
         int idx = s->slices[s->num_strokes-1].offset + i;
         s->xy[idx].x -= x_min;
         s->xy[idx].y = y_max - s->xy[idx].y;
@@ -199,6 +211,7 @@ int main(void) {
             DrawLineEx((Vector2){pX, pY}, (Vector2){x, y}, 2, BLACK);
             EndTextureMode();
 
+            add_point(&strokes, pX, pY);
             add_point(&strokes, x, y);
         }
 
