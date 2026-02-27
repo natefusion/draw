@@ -62,6 +62,7 @@ void add_stroke(struct Strokes *s) {
 }
 
 void draw_stroke(struct Strokes *s, int stroke, int x, int y, Color color) {
+    if (stroke < 0) return;
     int height = s->boxes[stroke].texture.texture.height;
     Vector2 prev = {s->xy[0].x + x, height - s->xy[0].y + y};
     
