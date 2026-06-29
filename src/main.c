@@ -148,6 +148,31 @@ int stroke_collision(struct Strokes *s, int x, int y) {
     return -1;
 }
 
+void draw_damaged_strokes(struct Strokes *s, int picked_up_stroke) {
+    Rectangle r1 = {
+        .x = s->boxes[picked_up_stroke].x,
+        .y = s->boxes[picked_up_stroke].y,
+        .width = s->boxes[picked_up_stroke].texture.texture.width,
+        .height = s->boxes[picked_up_stroke].texture.texture.height,
+    };
+
+
+    for (int i = 0; i < s->num_strokes; ++i) {
+        if (i == picked_up_stroke) continue;
+        Rectangle r2 = {
+            .x=s->boxes[i].x,
+            .y=s->boxes[i].y,
+            .width=s->boxes[i].texture.texture.width,
+            .height=s->boxes[i].texture.texture.height,
+        };
+
+        if (CheckCollisionRecs(r1, r2)) {
+            draw_stroke(s, i, s->boxes[i].x, s->boxes[i].y, BLACK);
+        }
+
+    }
+}
+
 void print_strokes(struct Strokes *s) {
     for (int i = 0; i < s->num_strokes; ++i) {
         printf("Stroke %d starts on index %d with a length of %d and a capacity of %d\n", i + 1, s->slices[i].offset, s->slices[i].size, s->xy_capacity);
@@ -244,6 +269,7 @@ int main(void) {
                     stroke_idx = stroke_collision(&strokes, x, y);
                     BeginTextureMode(render_texture);
                     draw_stroke(&strokes, stroke_idx, strokes.boxes[stroke_idx].x, strokes.boxes[stroke_idx].y, WHITE);
+                    draw_damaged_strokes(&strokes, stroke_idx);
                     EndTextureMode();
                     offsetX = x - strokes.boxes[stroke_idx].x; // so you pick it up where the mouse cursor is, rather than it snapping to the corner
                     offsetY = y - strokes.boxes[stroke_idx].y;
