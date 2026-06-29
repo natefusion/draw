@@ -189,6 +189,7 @@ int main(void) {
     SetTargetFPS(GetMonitorRefreshRate(GetCurrentMonitor()));
     
     bool highlight_mode = false;
+    bool draw_border = false;
 
     RenderTexture2D render_texture = LoadRenderTexture(WIDTH, HEIGHT);
 
@@ -240,15 +241,11 @@ int main(void) {
             DrawLineEx((Vector2){pX, pY}, (Vector2){x, y}, 2, BLACK);
             EndTextureMode();
 
-
             add_point(&strokes, x, y);
         }
-
         
         BeginDrawing();
         {
-            //ClearBackground(RAYWHITE);
-
             // NOTE: Render texture must be y-flipped due to default OpenGL coordinates (left-bottom)
             DrawTextureRec(render_texture.texture, (Rectangle) { 0, 0, (float)render_texture.texture.width, (float)-render_texture.texture.height }, (Vector2) { 0, 0 }, WHITE);
 
@@ -273,6 +270,7 @@ int main(void) {
                     EndTextureMode();
                     offsetX = x - strokes.boxes[stroke_idx].x; // so you pick it up where the mouse cursor is, rather than it snapping to the corner
                     offsetY = y - strokes.boxes[stroke_idx].y;
+                    draw_border = true;
                     printf("Stroke %d has been selected\n", stroke_idx);
                 } else {
                     strokes.boxes[stroke_idx].x = x - offsetX;
@@ -287,11 +285,20 @@ int main(void) {
                     
                     printf("Stroke %d has been unselected\n", stroke_idx);
                     stroke_idx = -1;
+                    draw_border = false;
                 }
             }
             
             if (stroke_idx != -1) {
                 DrawTextureEx(strokes.boxes[stroke_idx].texture.texture, (Vector2){x - offsetX, y - offsetY}, 0.0f, 1.0f, WHITE);
+
+                if (draw_border) {
+                    DrawText(TextFormat("Stroke %d", stroke_idx), x - offsetX, y - offsetY - 10, 10, RED);
+                    int w = strokes.boxes[stroke_idx].texture.texture.width + 1;
+                    int h =strokes.boxes[stroke_idx].texture.texture.height + 1;
+                    DrawRectangleLines(x - offsetX, y - offsetY, w, h, RED);
+                }
+
             }
             
             DrawText(TextFormat("Stroke: %d", strokes.num_strokes), 10, 10, 20, BLACK);
