@@ -247,7 +247,7 @@ int main(void) {
         
         BeginDrawing();
         {
-            ClearBackground(RAYWHITE);
+            //ClearBackground(RAYWHITE);
 
             // NOTE: Render texture must be y-flipped due to default OpenGL coordinates (left-bottom)
             DrawTextureRec(render_texture.texture, (Rectangle) { 0, 0, (float)render_texture.texture.width, (float)-render_texture.texture.height }, (Vector2) { 0, 0 }, WHITE);
@@ -275,11 +275,16 @@ int main(void) {
                     offsetY = y - strokes.boxes[stroke_idx].y;
                     printf("Stroke %d has been selected\n", stroke_idx);
                 } else {
-                    BeginTextureMode(render_texture);
-                    draw_stroke(&strokes, stroke_idx, x - offsetX, y - offsetY, BLACK);
-                    EndTextureMode();
                     strokes.boxes[stroke_idx].x = x - offsetX;
                     strokes.boxes[stroke_idx].y = y - offsetY;
+                    
+                    BeginTextureMode(render_texture);
+                    draw_stroke(&strokes, stroke_idx, strokes.boxes[stroke_idx].x, strokes.boxes[stroke_idx].y, BLACK);
+                    EndTextureMode();
+
+                    // prevent flicker due to double buffer(?) 
+                    DrawTextureEx(strokes.boxes[stroke_idx].texture.texture, (Vector2){x - offsetX, y - offsetY}, 0.0f, 1.0f, WHITE);
+                    
                     printf("Stroke %d has been unselected\n", stroke_idx);
                     stroke_idx = -1;
                 }
